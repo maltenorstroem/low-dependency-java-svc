@@ -1,0 +1,69 @@
+# Reference deployment. Adjust image, replicas and resources to your environment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-service
+  labels: { app.kubernetes.io/name: task-service }
+spec:
+  replicas: 1 # in-memory store: scale out only after switching to a shared database
+  selector:
+    matchLabels: { app.kubernetes.io/name: task-service }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: task-service }
+    spec:
+      automountServiceAccountToken: false
+      # > APP_DRAIN_DELAY_SECONDS + APP_SHUTDOWN_GRACE_SECONDS, so the app finishes draining first.
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ghcr.io/your-org/task-service:1.0.0
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: APP_DRAIN_DELAY_SECONDS, value: "5" }
+            - { name: APP_SHUTDOWN_GRACE_SECONDS, value: "20" }
+            # Setting the issuer turns authentication on. Remove these three and the service
+            # starts unauthenticated (and says so at WARN on every boot). No Secret is needed:
+            # a resource server holds only public keys.
+            - { name: APP_AUTH_ISSUER, value: "https://idp.example.com/realms/demo" }
+            - { name: APP_AUTH_AUDIENCE, value: "task-service" }
+            - { name: APP_AUTH_JWKS_URL, value: "https://idp.example.com/realms/demo/protocol/openid-connect/certs" }
+          resources:
+            requests: { cpu: 250m, memory: 256Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 1
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 2
+            failureThreshold: 1
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-service
+spec:
+  selector: { app.kubernetes.io/name: task-service }
+  ports:
+    - { name: http, port: 80, targetPort: http }

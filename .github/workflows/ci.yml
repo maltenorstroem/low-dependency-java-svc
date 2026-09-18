@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 1 * *" # monthly: catches breakage from new JDK/base-image releases early
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 21 = baseline (strict), 25 = current LTS. Add each new LTS here.
+        include:
+          - { java: "21", strict: "1" }
+          - { java: "25", strict: "0" }
+    steps:
+      # Consider pinning actions to full commit SHAs.
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - name: Build, test, link
+        run: STRICT=${{ matrix.strict }} ./build.sh all
+
+  container:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image
+        run: docker build -t task-service:ci .
+      - name: Smoke test
+        run: |
+          docker run -d --name app -p 8080:8080 --read-only --tmpfs /tmp task-service:ci
+          for i in $(seq 1 30); do curl -fsS localhost:8080/health/ready && break; sleep 1; done
+          curl -fsS -X POST localhost:8080/v1/tasks -H 'Content-Type: application/json' -d '{"title":"ci"}'
+          CUBE=$(curl -fsS -X POST localhost:8080/v1/cubes -H 'Content-Type: application/json' -d '{"description":"ci"}')
+          curl -fsS "localhost:8080/v1/cubes/$(echo "$CUBE" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')/pdf" -o /dev/null
+          docker stop app
+          docker logs app | tail -n 5
+      - name: Authenticated image refuses anonymous callers
+        run: |
+          # The cheapest guard that the "off unless configured" default cannot silently flip to
+          # permissive: with an issuer set, an anonymous call must be refused, and the probes must
+          # still answer so Kubernetes can start the pod at all.
+          docker run -d --name secured -p 8081:8080 --read-only --tmpfs /tmp \
+            -e APP_AUTH_ISSUER=https://idp.example.com/realms/demo \
+            -e APP_AUTH_AUDIENCE=task-service \
+            -e APP_AUTH_JWKS_URL=https://idp.example.com/realms/demo/protocol/openid-connect/certs \
+            task-service:ci
+          for i in $(seq 1 30); do curl -fsS localhost:8081/health/ready && break; sleep 1; done
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' localhost:8081/v1/tasks)
+          test "$STATUS" = "401" || { echo "anonymous GET /v1/tasks returned $STATUS, expected 401"; exit 1; }
+          curl -fsS localhost:8081/metrics -o /dev/null
+          docker stop secured

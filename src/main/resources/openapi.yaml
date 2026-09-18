@@ -1,0 +1,486 @@
+openapi: 3.1.0
+info:
+  title: Reference Task and Cube Service
+  version: 1.0.0
+  description: >
+    Zero-dependency reference backend. Errors use RFC 9457 Problem Details.
+    Updates and deletes require If-Match (optimistic concurrency, RFC 9110).
+    POST supports Idempotency-Key for safe retries.
+servers:
+  - url: http://localhost:8080
+  - url: http://localhost:8088
+tags:
+  - name: tasks
+  - name: cubes
+  - name: operations
+paths:
+  /v1/tasks:
+    get:
+      tags: [tasks]
+      operationId: listTasks
+      security:
+        - oauth2: ["task-service:tasks:read"]
+      summary: List tasks in creation order (cursor pagination)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque value from a previous response's nextCursor.
+          schema: { type: string }
+      responses:
+        "200":
+          description: A page of tasks
+          headers:
+            Link:
+              description: RFC 8288 link with rel="next" when more results exist.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskPage" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "406": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [tasks]
+      operationId: createTask
+      security:
+        - oauth2: ["task-service:tasks:write"]
+      summary: Create a task
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskInput" }
+      responses:
+        "201":
+          description: Created. Repeating the request with the same Idempotency-Key returns the same task.
+          headers:
+            Location: { schema: { type: string } }
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "413": { $ref: "#/components/responses/Problem" }
+        "415": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "507": { $ref: "#/components/responses/Problem" }
+  /v1/tasks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [tasks]
+      operationId: getTask
+      security:
+        - oauth2: ["task-service:tasks:read"]
+      parameters:
+        - name: If-None-Match
+          in: header
+          schema: { type: string }
+      responses:
+        "200":
+          description: The task
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "304":
+          description: Not modified
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [tasks]
+      operationId: replaceTask
+      security:
+        - oauth2: ["task-service:tasks:write"]
+      summary: Replace a task (full update)
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskInput" }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "412": { $ref: "#/components/responses/Problem" }
+        "415": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "428": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [tasks]
+      operationId: deleteTask
+      security:
+        - oauth2: ["task-service:tasks:write"]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "412": { $ref: "#/components/responses/Problem" }
+        "428": { $ref: "#/components/responses/Problem" }
+  /v1/cubes:
+    get:
+      tags: [cubes]
+      operationId: listCubes
+      security:
+        - oauth2: ["task-service:cubes:read"]
+      summary: List cubes in creation order (cursor pagination)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          description: Opaque value from a previous response's nextCursor.
+          schema: { type: string }
+      responses:
+        "200":
+          description: A page of cubes
+          headers:
+            Link:
+              description: RFC 8288 link with rel="next" when more results exist.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CubePage" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "406": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [cubes]
+      operationId: createCube
+      security:
+        - oauth2: ["task-service:cubes:write"]
+      summary: Create a cube
+      description: Every field has a default, so an empty object creates a white 100x100x100 cube.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CubeInput" }
+      responses:
+        "201":
+          description: Created. Repeating the request with the same Idempotency-Key returns the same cube.
+          headers:
+            Location: { schema: { type: string } }
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Cube" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "413": { $ref: "#/components/responses/Problem" }
+        "415": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "507": { $ref: "#/components/responses/Problem" }
+  /v1/cubes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cubes]
+      operationId: getCube
+      security:
+        - oauth2: ["task-service:cubes:read"]
+      parameters:
+        - name: If-None-Match
+          in: header
+          schema: { type: string }
+      responses:
+        "200":
+          description: The cube
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Cube" }
+        "304":
+          description: Not modified
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [cubes]
+      operationId: replaceCube
+      security:
+        - oauth2: ["task-service:cubes:write"]
+      summary: Replace a cube (full update)
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CubeInput" }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Cube" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "412": { $ref: "#/components/responses/Problem" }
+        "415": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+        "428": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [cubes]
+      operationId: deleteCube
+      security:
+        - oauth2: ["task-service:cubes:write"]
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Deleted
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "412": { $ref: "#/components/responses/Problem" }
+        "428": { $ref: "#/components/responses/Problem" }
+  /v1/cubes/{id}/pdf:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cubes]
+      operationId: getCubeDocument
+      security:
+        - oauth2: ["task-service:cubes:read"]
+      summary: A generated one-page data sheet for the cube
+      parameters:
+        - name: If-None-Match
+          in: header
+          schema: { type: string }
+      responses:
+        "200":
+          description: The data sheet
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+            Content-Disposition: { schema: { type: string } }
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "304":
+          description: Not modified
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "406": { $ref: "#/components/responses/Problem" }
+  /health/live:
+    get:
+      tags: [operations]
+      operationId: liveness
+      security: []   # public: probes, scrapers and clients hold no token
+      responses:
+        "200": { $ref: "#/components/responses/Health" }
+  /health/ready:
+    get:
+      tags: [operations]
+      operationId: readiness
+      security: []   # public: probes, scrapers and clients hold no token
+      responses:
+        "200": { $ref: "#/components/responses/Health" }
+        "503": { $ref: "#/components/responses/Health" }
+  /metrics:
+    get:
+      tags: [operations]
+      operationId: metrics
+      security: []   # public: probes, scrapers and clients hold no token
+      responses:
+        "200":
+          description: Prometheus text exposition format
+          content:
+            text/plain:
+              schema: { type: string }
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: >
+        An OAuth2 access token as a JWT, verified against the identity provider's published
+        signing keys. This service issues no tokens; obtain one from the provider named by
+        APP_AUTH_ISSUER. Scope names carry the prefix configured in APP_AUTH_SCOPE_PREFIX,
+        shown here with its default.
+      flows:
+        clientCredentials:
+          tokenUrl: https://issuer.example.com/realms/demo/protocol/openid-connect/token
+          scopes:
+            "task-service:tasks:read": Read tasks
+            "task-service:tasks:write": Create, replace and delete tasks
+            "task-service:cubes:read": Read cubes and their PDF representation
+            "task-service:cubes:write": Create, replace and delete cubes
+  parameters:
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: ETag from a previous response, or "*".
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Client-generated unique key (e.g. a UUID), 1-255 printable ASCII characters.
+      schema: { type: string, maxLength: 257 }
+  headers:
+    ETag:
+      description: Strong entity tag of the returned version.
+      schema: { type: string }
+  responses:
+    Problem:
+      description: RFC 9457 problem details
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Health:
+      description: Health status
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [status]
+            properties:
+              status: { type: string, enum: [UP, DOWN] }
+  schemas:
+    TaskInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        completed: { type: boolean, default: false }
+    Task:
+      type: object
+      required: [id, title, completed, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid, description: UUIDv7 (RFC 9562) }
+        title: { type: string }
+        completed: { type: boolean }
+        version: { type: integer, format: int64, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TaskPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Task" }
+        nextCursor: { type: [string, "null"] }
+    Colour:
+      type: object
+      description: RGBA colour (lgt.polaris.cube.v1.Colour).
+      properties:
+        red: { type: integer, minimum: 0, maximum: 255, default: 255 }
+        green: { type: integer, minimum: 0, maximum: 255, default: 255 }
+        blue: { type: integer, minimum: 0, maximum: 255, default: 255 }
+        alpha: { type: number, minimum: 0, maximum: 1, default: 1 }
+    Material:
+      type: string
+      description: lgt.polaris.cube.v1.Materials, in its proto3 JSON form.
+      default: MATERIALS_UNSPECIFIED
+      enum:
+        - MATERIALS_UNSPECIFIED
+        - MATERIALS_GLASS
+        - MATERIALS_WOOD
+        - MATERIALS_CERAMICS
+        - MATERIALS_METALS
+        - MATERIALS_PLASTICS
+        - MATERIALS_TEXTILES
+        - MATERIALS_LEATHER
+        - MATERIALS_PAPER
+        - MATERIALS_RUBBER
+    CubeDefinition:
+      type: object
+      description: Geometry and appearance (lgt.polaris.cube.v1.CubeDefinition).
+      properties:
+        length: { type: number, exclusiveMinimum: 0, maximum: 1000000, default: 100 }
+        breadth: { type: number, exclusiveMinimum: 0, maximum: 1000000, default: 100 }
+        height: { type: number, exclusiveMinimum: 0, maximum: 1000000, default: 100 }
+        colour: { $ref: "#/components/schemas/Colour" }
+        material: { $ref: "#/components/schemas/Material" }
+    CubeInput:
+      type: object
+      description: Every field is optional; omitted values fall back to the contract's defaults.
+      properties:
+        description: { type: string, maxLength: 1000, default: "" }
+        cube: { $ref: "#/components/schemas/CubeDefinition" }
+    Cube:
+      type: object
+      required: [id, displayName, description, cube, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid, description: UUIDv7 (RFC 9562) }
+        displayName:
+          type: string
+          readOnly: true
+          description: Derived from the geometry and material; accepted and ignored on write.
+        description: { type: string }
+        cube: { $ref: "#/components/schemas/CubeDefinition" }
+        version: { type: integer, format: int64, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CubePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Cube" }
+        nextCursor: { type: [string, "null"] }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        requestId: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              pointer: { type: string, description: JSON Pointer (RFC 6901) }
+              detail: { type: string }

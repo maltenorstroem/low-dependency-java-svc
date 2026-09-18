@@ -1,0 +1,9 @@
+# The only moving parts are the CI actions and the two base images. There are no library dependencies.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: monthly }

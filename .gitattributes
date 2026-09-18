@@ -1,0 +1,2 @@
+# LF everywhere: a CRLF build.sh breaks on Linux and in containers.
+* text=auto eol=lf
