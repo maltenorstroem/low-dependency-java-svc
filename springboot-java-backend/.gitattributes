@@ -1,0 +1,5 @@
+# The wrapper jar is binary; the batch script needs CRLF to run on Windows. Everything else
+# follows the repository-wide "LF everywhere" rule from the root .gitattributes.
+gradle/wrapper/gradle-wrapper.jar binary
+gradlew      text eol=lf
+gradlew.bat  text eol=crlf
