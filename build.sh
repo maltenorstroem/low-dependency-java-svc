@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds, tests and packages the service using nothing but the JDK (javac, jar, java, jlink).
-# No build tool to download, upgrade or trust. Requires JDK 21 or newer.
+# No build tool to download, upgrade or trust. Requires JDK 25 or newer.
 #
 #   ./build.sh test      compile and run the test suite
 #   ./build.sh package   build target/app.jar (modular, executable)
@@ -11,14 +11,30 @@
 #
 # STRICT=1 turns compiler warnings into errors. CI sets it on the baseline JDK only, so a future
 # JDK that adds new lint categories can never break a plain local build.
+#
+# RELEASE is the oldest JDK the artifact must run on. Raising it drops support for everything
+# older, so it is a deliberate decision: update .github/workflows/ci.yml and the README with it.
 set -eu
 
 cd "$(dirname "$0")"
 
-RELEASE=25
+RELEASE=${RELEASE:-25}
 OUT=target
 JAVAC_FLAGS="--release $RELEASE -encoding UTF-8 -Xlint:all -parameters"
 if [ "${STRICT:-0}" = "1" ]; then JAVAC_FLAGS="$JAVAC_FLAGS -Werror"; fi
+
+# javac cannot target a release newer than itself, and says so in a way that reads like a broken
+# toolchain rather than a mismatched setting. Fail early with the version that is actually wrong.
+require_jdk() {
+  current=$(java -XshowSettings:properties -version 2>&1 \
+    | sed -n 's/.*java\.specification\.version = \([0-9][0-9]*\).*/\1/p')
+  if [ -n "$current" ] && [ "$current" -lt "$RELEASE" ]; then
+    echo "This build targets Java $RELEASE but JDK $current is on the PATH." >&2
+    echo "Install a JDK $RELEASE or newer, or lower RELEASE in build.sh." >&2
+    exit 2
+  fi
+}
+require_jdk
 
 log() { printf '==> %s\n' "$*"; }
 

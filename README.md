@@ -1,13 +1,13 @@
 # Zero-dependency Java REST reference backend
 
-A production-shaped REST service in plain Java 21+ with **no third-party dependencies**: not at runtime, not in the build, not in the tests. It uses only `java.base`, `jdk.httpserver` and `java.net.http`, and its container ships a 42 MB `jlink` runtime containing exactly those three modules.
+A production-shaped REST service in plain Java 25 with **no third-party dependencies**: not at runtime, not in the build, not in the tests. It uses only `java.base`, `jdk.httpserver` and `java.net.http`, and its container ships a 42 MB `jlink` runtime containing exactly those three modules.
 
 The goal is a service that keeps building and running for many years with no maintenance beyond moving to new JDK LTS releases. It is built on published standards (IETF RFCs, W3C, OpenAPI, Prometheus), so the design stays valid even as frameworks come and go.
 
 ## Quick start
 
 ```sh
-./build.sh all                                   # test + package + jlink (needs only a JDK 21+)
+./build.sh all                                   # test + package + jlink (needs only a JDK 25+)
 ./build.sh run                                   # or: target/image/bin/java -m com.example.app
 
 curl -i -X POST localhost:8080/v1/tasks \
@@ -192,10 +192,10 @@ These concerns belong in the platform or need a decision this reference cannot m
 
 ## Long-term maintenance
 
-- **Runtime**: move to each new JDK LTS. CI tests the baseline (21) and the current LTS (25), and a monthly scheduled run catches breakage early.
+- **Runtime**: move to each new JDK LTS. CI tests the baseline (25, the current LTS) and the newest feature release (26), and a monthly scheduled run catches breakage early.
 - **Moving parts**: the only things that change are two base images and two CI actions, all tracked by Dependabot.
 - **Base images**: Red Hat UBI 10 for both stages — `eclipse-temurin:25-jdk-ubi10-minimal` to build, `ubi10/ubi-micro` to run. `ubi-micro` is glibc and nothing else (no package manager, no shell, no coreutils), so a scan of the runtime image reports no OS packages beyond the C library, and Red Hat ships security errata plus VEX data for what remains. Both stages must stay on the same UBI major: the `jlink` image contains native code linked against the build stage's glibc.
-- **Source**: compiled with `--release 21`. Warnings fail the build only on the baseline JDK (`STRICT=1`), so a newer `javac` adding lint categories cannot break your build.
+- **Source**: compiled with `--release 25`, set as `RELEASE` in `build.sh`. Raising it drops support for older runtimes, so it is a deliberate decision that also means updating the CI matrix and this section. `build.sh` refuses to run on a JDK older than `RELEASE` rather than letting `javac` fail with a message about a broken toolchain. Warnings fail the build only on the baseline JDK (`STRICT=1`), so a newer `javac` adding lint categories cannot break your build.
 - **Framework**: `jdk.httpserver` is an exported, supported JDK module that has been in every JDK since Java 6.
 - **Known limitation**: requests the JDK server rejects before reaching the application (for example, a malformed request line) get the JDK's plain HTML `400`, not a problem document.
 

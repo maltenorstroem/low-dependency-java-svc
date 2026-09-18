@@ -16,10 +16,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 21 = baseline (strict), 25 = current LTS. Add each new LTS here.
+        # 25 = baseline, the current LTS and what we compile against (strict).
+        # 26 = the newest feature release, so a JDK that breaks us shows up here first.
+        # When the next LTS lands, it becomes the baseline and moves to strict.
         include:
-          - { java: "21", strict: "1" }
-          - { java: "25", strict: "0" }
+          - { java: "25", strict: "1" }
+          - { java: "26", strict: "0" }
     steps:
       # Consider pinning actions to full commit SHAs.
       - uses: actions/checkout@v5
