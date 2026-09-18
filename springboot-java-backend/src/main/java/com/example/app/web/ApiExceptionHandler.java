@@ -122,6 +122,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {
 
         HttpServletRequest servlet = servletRequest(request);
+        BodyTooLargeException tooLarge = causeOfType(failure, BodyTooLargeException.class);
+        if (tooLarge != null) {
+            // Only reachable for a body that under-declared its length: a truthful Content-Length
+            // is refused by BodyLimitFilter before the handler is ever entered.
+            ProblemDetail problem = problem(HttpStatus.CONTENT_TOO_LARGE, null, tooLarge.getMessage());
+            return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE)
+                    .header(HttpHeaders.CONNECTION, "close")
+                    .body(withRequestId(problem, servlet));
+        }
         if (failure.getCause() instanceof MismatchedInputException mismatch) {
             // The body parsed but did not fit the contract: a field of the wrong type, or one that
             // is not part of it. That is a semantic problem, so 422 like any other violation.
@@ -171,6 +180,18 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     private static String requestId(HttpServletRequest request) {
         Object id = request == null ? null : request.getAttribute(REQUEST_ID);
         return id == null ? "-" : id.toString();
+    }
+
+    private static <T extends Throwable> T causeOfType(Throwable failure, Class<T> type) {
+        for (Throwable t = failure; t != null; t = t.getCause()) {
+            if (type.isInstance(t)) {
+                return type.cast(t);
+            }
+            if (t.getCause() == t) {
+                break;
+            }
+        }
+        return null;
     }
 
     private static HttpServletRequest servletRequest(WebRequest request) {

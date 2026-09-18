@@ -1,4 +1,4 @@
-package com.example.app.api;
+package com.example.app.testing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -22,9 +22,11 @@ import tools.jackson.databind.ObjectMapper;
  * the JDK's own HttpClient rather than TestRestTemplate, so nothing in the test stack can smooth
  * over a header, a status code or a content type the way a Spring-aware client might.
  *
- * <p>Not named {@code *Test}, so it is not collected as a suite of its own.
+ * <p>This package once held a hand-written test runner, an annotation and five assertions, because
+ * the service took no dependency on a test framework either. JUnit 5 replaces all of it; what is
+ * left is the part JUnit does not provide.
  */
-abstract class HttpTestSupport {
+public abstract class HttpTestSupport {
 
     private static final HttpClient CLIENT = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
