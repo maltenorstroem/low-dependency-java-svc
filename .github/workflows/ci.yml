@@ -23,7 +23,7 @@ jobs:
     steps:
       # Consider pinning actions to full commit SHAs.
       - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
