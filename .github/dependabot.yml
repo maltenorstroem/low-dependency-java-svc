@@ -1,9 +1,31 @@
-# The only moving parts are the CI actions and the two base images. There are no library dependencies.
+# The zero-dependency service has no libraries to update: its only moving parts
+# are the CI actions and the base images. The Spring Boot module is the opposite,
+# and the difference in how much noise each produces is one of the things this
+# repository is here to measure.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+
   - package-ecosystem: docker
     directory: /
     schedule: { interval: monthly }
+
+  - package-ecosystem: docker
+    directory: /springboot-java-backend
+    schedule: { interval: monthly }
+
+  - package-ecosystem: gradle
+    directory: /springboot-java-backend
+    # Weekly rather than monthly: there are now dependencies that carry security
+    # advisories, and waiting a month to hear about one is too long.
+    schedule: { interval: weekly }
+    groups:
+      # One pull request per Spring release train instead of dozens.
+      spring:
+        patterns:
+          - "org.springframework*"
+          - "io.micrometer*"
+          - "com.nimbusds*"
+          - "tools.jackson*"

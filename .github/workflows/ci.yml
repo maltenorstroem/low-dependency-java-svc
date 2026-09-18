@@ -10,8 +10,13 @@ on:
 permissions:
   contents: read
 
+# Both implementations are built and smoke-tested on every change, with no path
+# filters. A required check that never runs blocks a merge, and the point of the
+# repository is that the two stay in step: a change to one that silently diverges
+# from the other should fail here, not be discovered later.
+
 jobs:
-  build:
+  zero-dependency:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,34 +37,86 @@ jobs:
       - name: Build, test, link
         run: STRICT=${{ matrix.strict }} ./build.sh all
 
-  container:
+  spring-boot:
     runs-on: ubuntu-latest
-    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { java: "25", strict: "true" }
+          - { java: "27", strict: "false" }
+    defaults:
+      run:
+        working-directory: springboot-java-backend
     steps:
       - uses: actions/checkout@v5
-      - name: Build image
-        run: docker build -t task-service:ci .
-      - name: Smoke test
+      # The wrapper jar is a binary committed to the repository; this is what
+      # says it is the one Gradle published and not something else.
+      - uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: gradle
+          cache-dependency-path: springboot-java-backend/*.gradle.kts
+      - name: Build and test
+        run: ./gradlew --no-daemon build -Pstrict=${{ matrix.strict }}
+
+  contract:
+    runs-on: ubuntu-latest
+    needs: [zero-dependency, spring-boot]
+    steps:
+      - uses: actions/checkout@v5
+
+      # The contract is served by both services, so the copies must not drift.
+      - name: The two copies of the contract are identical
+        run: diff src/main/resources/openapi.yaml springboot-java-backend/src/main/resources/openapi.yaml
+
+      # The domain ports unchanged, and that claim is only worth making if it is
+      # checked. A deliberate change means updating both sides in one commit.
+      - name: The domain is identical in both implementations
+        run: diff -r src/main/java/com/example/app/domain springboot-java-backend/src/main/java/com/example/app/domain
+
+      - name: Build both images
         run: |
-          docker run -d --name app -p 8080:8080 --read-only --tmpfs /tmp task-service:ci
-          for i in $(seq 1 30); do curl -fsS localhost:8080/health/ready && break; sleep 1; done
-          curl -fsS -X POST localhost:8080/v1/tasks -H 'Content-Type: application/json' -d '{"title":"ci"}'
-          CUBE=$(curl -fsS -X POST localhost:8080/v1/cubes -H 'Content-Type: application/json' -d '{"description":"ci"}')
-          curl -fsS "localhost:8080/v1/cubes/$(echo "$CUBE" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')/pdf" -o /dev/null
-          docker stop app
-          docker logs app | tail -n 5
-      - name: Authenticated image refuses anonymous callers
+          docker build -t task-service:ci .
+          docker build -t spring-task-service:ci springboot-java-backend
+
+      - name: Report image sizes
+        run: docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep -E 'task-service:ci'
+
+      # The same script against both: an executable proof that they behave alike
+      # on the wire, rather than a claim in a README.
+      - name: Smoke test both images
         run: |
-          # The cheapest guard that the "off unless configured" default cannot silently flip to
-          # permissive: with an issuer set, an anonymous call must be refused, and the probes must
-          # still answer so Kubernetes can start the pod at all.
-          docker run -d --name secured -p 8081:8080 --read-only --tmpfs /tmp \
-            -e APP_AUTH_ISSUER=https://idp.example.com/realms/demo \
-            -e APP_AUTH_AUDIENCE=task-service \
-            -e APP_AUTH_JWKS_URL=https://idp.example.com/realms/demo/protocol/openid-connect/certs \
-            task-service:ci
-          for i in $(seq 1 30); do curl -fsS localhost:8081/health/ready && break; sleep 1; done
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' localhost:8081/v1/tasks)
-          test "$STATUS" = "401" || { echo "anonymous GET /v1/tasks returned $STATUS, expected 401"; exit 1; }
-          curl -fsS localhost:8081/metrics -o /dev/null
-          docker stop secured
+          docker run -d --name zero -p 8080:8080 --read-only --tmpfs /tmp task-service:ci
+          docker run -d --name spring -p 8081:8080 --read-only --tmpfs /tmp spring-task-service:ci
+          ./scripts/smoke.sh http://localhost:8080
+          ./scripts/smoke.sh http://localhost:8081
+          docker stop zero spring
+
+      - name: Both images refuse anonymous callers once an issuer is configured
+        run: |
+          for pair in "zero-secured task-service:ci 8082" "spring-secured spring-task-service:ci 8083"; do
+            set -- $pair
+            docker run -d --name "$1" -p "$3:8080" --read-only --tmpfs /tmp \
+              -e APP_AUTH_ISSUER=https://idp.example.com/realms/demo \
+              -e APP_AUTH_AUDIENCE=task-service \
+              -e APP_AUTH_JWKS_URL=https://idp.example.com/realms/demo/protocol/openid-connect/certs \
+              "$2"
+            ./scripts/smoke-auth.sh "http://localhost:$3"
+            docker stop "$1"
+          done
+
+      # The AOT cache is easy to break without noticing: the image still works,
+      # it just starts slowly again.
+      - name: The Spring image starts with its AOT cache
+        run: |
+          docker run -d --name timed -p 8084:8080 --read-only --tmpfs /tmp spring-task-service:ci
+          for i in $(seq 1 60); do curl -fsS localhost:8084/health/ready > /dev/null 2>&1 && break; sleep 1; done
+          SECONDS_TAKEN=$(docker logs timed 2>&1 \
+            | grep -o 'Started TaskServiceApplication in [0-9.]*' | head -n 1 | awk '{print $NF}')
+          echo "startup: ${SECONDS_TAKEN}s"
+          awk -v t="$SECONDS_TAKEN" 'BEGIN { exit !(t < 4.0) }' \
+            || { echo "startup took ${SECONDS_TAKEN}s; the AOT cache is probably not being used"; exit 1; }
+          docker stop timed
