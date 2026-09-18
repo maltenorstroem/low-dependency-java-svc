@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -65,6 +66,10 @@ public class AccessLogFilter extends OncePerRequestFilter {
 
     private static String subject() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication == null || !authentication.isAuthenticated() ? null : authentication.getName();
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return null; // "anonymousUser" is Spring's placeholder, not a subject anyone can look up
+        }
+        return authentication.getName();
     }
 }

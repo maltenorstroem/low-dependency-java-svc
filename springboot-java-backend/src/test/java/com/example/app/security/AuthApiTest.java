@@ -225,6 +225,26 @@ class AuthApiTest extends HttpTestSupport {
         assertTrue(send("OPTIONS", "/v1/tasks", null).statusCode() < 400);
     }
 
+    @Test
+    void countsAuthenticationOutcomesWithABoundedLabelSet() throws Exception {
+        send("GET", "/v1/tasks", null); // missing_token
+        send("GET", "/v1/tasks", null, "Authorization", "Bearer rubbish"); // invalid_token
+        String readOnly = TOKENS.withScopes("task-service:tasks:read");
+        send("GET", "/v1/tasks", null, "Authorization", "Bearer " + readOnly); // allowed
+        send("POST", "/v1/tasks", "{\"title\":\"x\"}",
+                "Authorization", "Bearer " + readOnly); // insufficient_scope
+
+        String metrics = send("GET", "/metrics", null).body();
+        for (String outcome : new String[] {"missing_token", "invalid_token", "allowed", "insufficient_scope"}) {
+            assertTrue(metrics.contains("outcome=\"" + outcome + "\""),
+                    () -> "missing outcome " + outcome);
+        }
+        // Spring Security publishes no meters of its own, and Nimbus does not report how many keys
+        // it holds; without this gauge a provider that starts serving an empty key set looks fine
+        // until every token fails.
+        assertTrue(metrics.contains("auth_jwks_keys"), "cached key count");
+    }
+
     private void assertInvalidToken(HttpResponse<String> response) throws Exception {
         Map<?, ?> problem = assertProblem(response, 401);
         assertEquals("Unauthorized", problem.get("title"));

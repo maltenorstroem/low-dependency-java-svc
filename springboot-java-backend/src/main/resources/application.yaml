@@ -54,3 +54,34 @@ server:
     max-connections: ${app.max-connections}
     accept-count: ${app.backlog}
     connection-timeout: ${app.request-timeout-seconds}s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # /metrics and /health/* are served at their published paths by
+        # OperationalEndpointsController; these are the canonical equivalents.
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      # Publishes /actuator/health/liveness and /actuator/health/readiness, and makes readiness the
+      # thing graceful shutdown moves first.
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  structured:
+    format:
+      # One JSON object per line on stdout, as the sibling service emits. MDC entries — requestId
+      # and traceId — are included automatically, which is what makes RequestIdFilter enough.
+      console: logstash
+  level:
+    root: INFO
