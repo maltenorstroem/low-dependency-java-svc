@@ -45,7 +45,11 @@ dependencies {
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.compilerArgs.addAll(listOf("-Xlint:all", "-parameters"))
+    // -processing is excluded because annotation processors that generate metadata without
+    // claiming their annotations — spring-boot-configuration-processor does exactly that, and it
+    // does produce spring-configuration-metadata.json — trip that lint on every compile. The
+    // sibling zero-dependency build runs a clean -Xlint:all precisely because it has no processors.
+    options.compilerArgs.addAll(listOf("-Xlint:all,-processing", "-parameters"))
     // Mirrors STRICT=1 in the sibling module's build.sh: CI turns warnings into errors on the
     // baseline JDK only, so a newer JDK adding a lint category cannot break a local build.
     if (providers.gradleProperty("strict").orNull == "true" || System.getenv("STRICT") == "1") {

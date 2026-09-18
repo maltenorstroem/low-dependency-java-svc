@@ -1,0 +1,4 @@
+# Boot 4 moved the interface to org.springframework.boot.EnvironmentPostProcessor and registers
+# implementations here, not through a META-INF/spring/*.imports file.
+org.springframework.boot.EnvironmentPostProcessor=\
+com.example.app.config.AuthEnabledEnvironmentPostProcessor

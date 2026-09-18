@@ -1,13 +1,56 @@
+# Defaults live here, in one visible place. Every one of them is overridden by the same APP_*
+# environment variable the zero-dependency service reads, through Spring's relaxed binding:
+# APP_MAX_BODY_BYTES -> app.max-body-bytes, APP_AUTH_JWKS_URL -> app.auth.jwks-url, and so on.
+app:
+  host: 0.0.0.0
+  port: 8080
+  backlog: 0
+  max-connections: 1000
+  max-concurrent-requests: 256
+  max-body-bytes: 1048576
+  request-timeout-seconds: 30
+  shutdown-grace-seconds: 20
+  drain-delay-seconds: 5
+  log-level: INFO
+  max-tasks: 100000
+  max-cubes: 100000
+  idempotency-ttl-seconds: 86400
+  max-idempotency-keys: 10000
+  auth:
+    # enabled is derived from the issuer by AuthEnabledEnvironmentPostProcessor; setting
+    # APP_AUTH_ENABLED explicitly overrides that.
+    issuer: ""
+    audience: ""
+    jwks-url: ""
+    scope-prefix: "task-service:"
+    realm: api
+    jwks-ttl-seconds: 300
+    jwks-min-refresh-seconds: 30
+    jwks-timeout-seconds: 5
+    jwks-max-stale-seconds: 3600
+    jwks-max-bytes: 131072
+    clock-leeway-seconds: 60
+    max-token-bytes: 8192
+
 spring:
   application:
     name: task-service
   threads:
     virtual:
+      # Tomcat handles requests on virtual threads, as the sibling service does. Note that this
+      # removes maxThreads as a concurrency bound, which is why LoadSheddingFilter exists.
       enabled: true
   main:
     banner-mode: off
+  lifecycle:
+    timeout-per-shutdown-phase: ${app.shutdown-grace-seconds}s
 
 server:
-  address: ${APP_HOST:0.0.0.0}
-  port: ${APP_PORT:8080}
+  address: ${app.host}
+  port: ${app.port}
   shutdown: graceful
+  max-http-request-header-size: 16KB
+  tomcat:
+    max-connections: ${app.max-connections}
+    accept-count: ${app.backlog}
+    connection-timeout: ${app.request-timeout-seconds}s
