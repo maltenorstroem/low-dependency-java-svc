@@ -17,3 +17,4 @@ Use only JDK modules: `java.base` and `jdk.httpserver` at runtime; `javac`, `jar
 - We own roughly 2.5k lines of code (comments included) instead of a framework. It is deliberately narrow: it only implements what this service needs.
 - `jdk.httpserver` is HTTP/1.1 only and has fewer tuning knobs than Netty/Jetty. TLS and HTTP/2 are delegated to the ingress.
 - Adding JUnit later (test scope only) is a reasonable, low-risk exception if the team prefers it; the tests are plain methods and port mechanically.
+- Scope narrowed by ADR-0005 to the root module: `springboot-java-backend/` is a second implementation of the same contract, built the usual way, and is exempt from this decision. Keeping it is what turns the claims above into measurements.

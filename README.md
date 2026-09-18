@@ -4,6 +4,25 @@ A production-shaped REST service in plain Java 25 with **no third-party dependen
 
 The goal is a service that keeps building and running for many years with no maintenance beyond moving to new JDK LTS releases. It is built on published standards (IETF RFCs, W3C, OpenAPI, Prometheus), so the design stays valid even as frameworks come and go.
 
+## Two implementations of the same contract
+
+This repository holds the service twice. The root module is the zero-dependency one described below. [`springboot-java-backend/`](springboot-java-backend/) answers the same `openapi.yaml` on Spring Boot 4, built the way most Java shops build, and CI runs the same [`scripts/smoke.sh`](scripts/smoke.sh) against both images on every change.
+
+The second one exists so that the claims made here are measurements rather than assertions. See [ADR-0005](docs/adr/0005-spring-boot-port.md); [ADR-0001](docs/adr/0001-zero-dependencies.md) still governs this module and only this one.
+
+| | This module | `springboot-java-backend/` |
+|---|---|---|
+| Direct dependencies | 0 | 6 starters, resolving to 81 artifacts |
+| Main source | 3,889 lines | 2,754 lines (674 of them the identical domain) |
+| Tests | 107 | 84 |
+| Image | 68.5 MB | 191 MB |
+| Startup | ~60 ms | ~1.9 s with an AOT cache |
+| Build | `javac`, `jar`, `jlink` | Gradle 9.7 and its plugins |
+
+The framework removes about a third of the code, and with it the obligation to have got routing, JSON parsing, metrics and JWT verification right. It costs roughly three times the image, thirty times the startup, and a dependency graph to keep patched. Which trade is correct depends on the service; this repository just refuses to guess.
+
+Its README lists the behaviours that differ — metric names, validation reporting, log field names — and the controls that Spring had no answer for and had to be written by hand anyway.
+
 ## Quick start
 
 ```sh
@@ -90,9 +109,11 @@ src/main/java/com/example/app/
   security/             OAuth2 resource server: JWT verification, JWKS cache, scope checks
   json/                 strict JSON parser/writer
   observability/        JSON logging, Prometheus metrics
-src/test/java/          105 tests incl. black-box HTTP tests, a 100-line test runner
+src/test/java/          107 tests incl. black-box HTTP tests, a 100-line test runner
 deploy/kubernetes.yaml  hardened Deployment with probes
 docs/adr/               architecture decision records
+scripts/smoke.sh        the contract, as a script; CI runs it against both implementations
+springboot-java-backend/  the same contract on Spring Boot 4 (see ADR-0005)
 ```
 
 Dependencies point inward (`api`/`http` → `domain`). The domain knows nothing about HTTP or JSON.
