@@ -12,6 +12,7 @@ servers:
 tags:
   - name: tasks
   - name: cubes
+  - name: streams
   - name: operations
 paths:
   /v1/tasks:
@@ -308,6 +309,45 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "406": { $ref: "#/components/responses/Problem" }
+  /v1/random-strings:
+    get:
+      tags: [streams]
+      operationId: streamRandomStrings
+      security:
+        - oauth2: ["task-service:strings:read"]
+      summary: A stream of random alphanumeric strings as server-sent events
+      description: >
+        One event per interval, each with an increasing id, the event name random-string and one
+        string as its data. The stream ends after count events, after the server's configured
+        maximum duration, or when the server shuts down. The interval bounds are configurable;
+        the defaults are shown.
+      parameters:
+        - name: intervalMs
+          in: query
+          description: Milliseconds between events.
+          schema: { type: integer, minimum: 50, maximum: 60000, default: 1000 }
+        - name: count
+          in: query
+          description: Number of events after which the stream ends; unbounded if absent.
+          schema: { type: integer, minimum: 1, maximum: 100000 }
+      responses:
+        "200":
+          description: >
+            A text/event-stream, e.g. "id: 0", "event: random-string", "data: q7Rk2VxP0bLmZt9A".
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/Problem" }
+        "401": { $ref: "#/components/responses/Problem" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "406": { $ref: "#/components/responses/Problem" }
+        "503":
+          description: Too many streams are open; retry after the Retry-After delay.
+          headers:
+            Retry-After: { schema: { type: integer } }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
   /health/live:
     get:
       tags: [operations]
@@ -351,6 +391,7 @@ components:
             "task-service:tasks:write": Create, replace and delete tasks
             "task-service:cubes:read": Read cubes and their PDF representation
             "task-service:cubes:write": Create, replace and delete cubes
+            "task-service:strings:read": Stream random strings
   parameters:
     IfMatch:
       name: If-Match

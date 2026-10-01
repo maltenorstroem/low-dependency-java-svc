@@ -31,6 +31,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Only for /v1/random-strings: Spring MVC streams a Flux returned from a controller as
+    // server-sent events on its own, so the reactive types are needed without WebFlux itself.
+    implementation("io.projectreactor:reactor-core")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

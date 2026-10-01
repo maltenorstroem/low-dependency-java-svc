@@ -35,7 +35,8 @@ public class RequiredScopes {
                 rule(parser, HttpMethod.GET, "/v1/cubes/{id}/pdf", scopes.cubesRead()),
                 rule(parser, HttpMethod.POST, "/v1/cubes", scopes.cubesWrite()),
                 rule(parser, HttpMethod.PUT, "/v1/cubes/{id}", scopes.cubesWrite()),
-                rule(parser, HttpMethod.DELETE, "/v1/cubes/{id}", scopes.cubesWrite()));
+                rule(parser, HttpMethod.DELETE, "/v1/cubes/{id}", scopes.cubesWrite()),
+                rule(parser, HttpMethod.GET, "/v1/random-strings", scopes.stringsRead()));
     }
 
     private static Rule rule(PathPatternParser parser, HttpMethod method, String pattern, String scope) {

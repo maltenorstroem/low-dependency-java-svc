@@ -194,6 +194,20 @@ class AuthApiTest extends HttpTestSupport {
     }
 
     @Test
+    void streamsRandomStringsOnlyToCallersWithTheStringsScope() throws Exception {
+        String strings = TOKENS.withScopes("task-service:strings:read");
+        HttpResponse<String> streamed = send("GET", "/v1/random-strings?count=1&intervalMs=50", null,
+                "Authorization", "Bearer " + strings, "Accept", "text/event-stream");
+        assertEquals(200, streamed.statusCode(), streamed.body());
+
+        String tasks = TOKENS.withScopes("task-service:tasks:read");
+        HttpResponse<String> refused = send("GET", "/v1/random-strings?count=1", null,
+                "Authorization", "Bearer " + tasks);
+        assertEquals(List.of("task-service:strings:read"), assertProblem(refused, 403).get("requiredScopes"));
+        assertEquals(401, send("GET", "/v1/random-strings?count=1", null).statusCode());
+    }
+
+    @Test
     void neverEchoesTheTokenBack() throws Exception {
         String token = TOKENS.withScopes("task-service:tasks:read");
         HttpResponse<String> forbidden = send("POST", "/v1/tasks", "{\"title\":\"x\"}",

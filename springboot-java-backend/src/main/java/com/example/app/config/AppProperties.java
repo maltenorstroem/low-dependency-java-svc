@@ -57,5 +57,7 @@ public record AppProperties(
 
         @Min(1) @Max(10_000_000) int maxIdempotencyKeys,
 
-        @NotNull @Valid AuthProperties auth) {
+        @NotNull @Valid AuthProperties auth,
+
+        @NotNull @Valid RandomStreamProperties randomStream) {
 }

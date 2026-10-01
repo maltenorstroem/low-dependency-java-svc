@@ -35,4 +35,8 @@ public record ScopeNames(String prefix) {
     public String cubesWrite() {
         return prefix + "cubes:write";
     }
+
+    public String stringsRead() {
+        return prefix + "strings:read";
+    }
 }
