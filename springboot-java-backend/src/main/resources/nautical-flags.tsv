@@ -1,0 +1,40 @@
+# International Code of Signals: one flag per character, read by NauticalFlags at startup.
+# Columns, tab-separated: character, codeword, glyph. Unicode has no signal-flag code points, so
+# the glyph approximates the flag's colours and layout; the codeword is authoritative, and flags
+# that really do look alike (Tango and pennant 3, Kilo and pennant 5) share a glyph.
+A	Alfa	⬜🟦
+B	Bravo	🟥
+C	Charlie	🟦⬜🟥⬜🟦
+D	Delta	🟨🟦🟨
+E	Echo	🟦🟥
+F	Foxtrot	⬜♦️⬜
+G	Golf	🟨🟦🟨🟦🟨🟦
+H	Hotel	⬜🟥
+I	India	🟨⚫🟨
+J	Juliett	🟦⬜🟦
+K	Kilo	🟨🟦
+L	Lima	🟨⬛⬛🟨
+M	Mike	🟦✖️🟦
+N	November	🟦⬜🟦⬜
+O	Oscar	🟥🟨
+P	Papa	🟦◻️🟦
+Q	Quebec	🟨
+R	Romeo	🟥🟨🟥
+S	Sierra	⬜🟦⬜
+T	Tango	🟥⬜🟦
+U	Uniform	🟥⬜⬜🟥
+V	Victor	⬜❌⬜
+W	Whiskey	🟦⬜🟥
+X	X-ray	⬜➕⬜
+Y	Yankee	🟨🟥🟨🟥🟨
+Z	Zulu	🟨⬛🟥🟦
+0	Nadazero	🟨🟥🟨
+1	Unaone	⬜🔴⬜
+2	Bissotwo	🟦⚪🟦
+3	Terrathree	🟥⬜🟦
+4	Kartefour	🟥⬜🟥
+5	Pantafive	🟨🟦
+6	Soxisix	⬛⬜
+7	Setteseven	🟨🟥
+8	Oktoeight	⬜🟥⬜
+9	Novenine	⬜⬛🟥🟨

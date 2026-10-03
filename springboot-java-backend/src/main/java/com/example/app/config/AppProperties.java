@@ -59,5 +59,5 @@ public record AppProperties(
 
         @NotNull @Valid AuthProperties auth,
 
-        @NotNull @Valid RandomStreamProperties randomStream) {
+        @NotNull @Valid NauticalFlagsProperties nauticalFlags) {
 }

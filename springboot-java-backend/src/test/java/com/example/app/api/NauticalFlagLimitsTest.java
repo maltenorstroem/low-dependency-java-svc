@@ -10,7 +10,6 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.OptionalLong;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,22 +20,25 @@ import org.springframework.boot.test.context.SpringBootTest;
  * shutdown. A context of its own, because a cap of one would make any other stream test flaky.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "app.random-stream.max-concurrent-streams=1")
-class RandomStringLimitsTest extends HttpTestSupport {
+        properties = "app.nautical-flags.max-concurrent-streams=1")
+class NauticalFlagLimitsTest extends HttpTestSupport {
 
     @Autowired
-    RandomStringStream streams;
+    NauticalFlagStream streams;
+
+    @Autowired
+    NauticalFlags flags;
 
     @Test
     void refusesStreamsBeyondTheCapAndRecovers() throws Exception {
         HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
-        HttpRequest open = HttpRequest.newBuilder(uri("/v1/random-strings?intervalMs=50")).build();
+        HttpRequest open = HttpRequest.newBuilder(uri("/v1/nautical-flags?intervalMs=50&text=" + "A".repeat(256))).build();
         HttpResponse<Stream<String>> held = client.send(open, BodyHandlers.ofLines());
         try (Stream<String> lines = held.body()) {
             assertEquals(200, held.statusCode());
             assertTrue(lines.iterator().hasNext(), "the held stream emits");
 
-            HttpResponse<String> refused = send("GET", "/v1/random-strings?count=1", null);
+            HttpResponse<String> refused = send("GET", "/v1/nautical-flags?text=A", null);
             assertProblem(refused, 503);
             assertEquals("1", header(refused, "Retry-After"));
         }
@@ -45,7 +47,7 @@ class RandomStringLimitsTest extends HttpTestSupport {
         Instant deadline = Instant.now().plusSeconds(5);
         int status;
         do {
-            status = send("GET", "/v1/random-strings?count=1&intervalMs=50", null).statusCode();
+            status = send("GET", "/v1/nautical-flags?text=A&intervalMs=50", null).statusCode();
         } while (status == 503 && Instant.now().isBefore(deadline));
         assertEquals(200, status);
         client.close();
@@ -53,7 +55,7 @@ class RandomStringLimitsTest extends HttpTestSupport {
 
     @Test
     void completesOpenStreamsWhenStopped() {
-        var stream = streams.open(Duration.ofMillis(50), OptionalLong.empty());
+        var stream = streams.open(Duration.ofMillis(50), flags.translate("A".repeat(256)));
         try {
             streams.stop();
             // Completion, not an error or a hang: blockLast returns normally.
@@ -61,6 +63,6 @@ class RandomStringLimitsTest extends HttpTestSupport {
         } finally {
             streams.start();
         }
-        assertEquals(1, streams.open(Duration.ofMillis(50), OptionalLong.of(1)).count().block(Duration.ofSeconds(5)));
+        assertEquals(1, streams.open(Duration.ofMillis(50), flags.translate("A")).count().block(Duration.ofSeconds(5)));
     }
 }

@@ -194,17 +194,17 @@ class AuthApiTest extends HttpTestSupport {
     }
 
     @Test
-    void streamsRandomStringsOnlyToCallersWithTheStringsScope() throws Exception {
-        String strings = TOKENS.withScopes("task-service:strings:read");
-        HttpResponse<String> streamed = send("GET", "/v1/random-strings?count=1&intervalMs=50", null,
-                "Authorization", "Bearer " + strings, "Accept", "text/event-stream");
+    void streamsNauticalFlagsOnlyToCallersWithTheFlagsScope() throws Exception {
+        String flags = TOKENS.withScopes("task-service:flags:read");
+        HttpResponse<String> streamed = send("GET", "/v1/nautical-flags?text=A&intervalMs=50", null,
+                "Authorization", "Bearer " + flags, "Accept", "text/event-stream");
         assertEquals(200, streamed.statusCode(), streamed.body());
 
         String tasks = TOKENS.withScopes("task-service:tasks:read");
-        HttpResponse<String> refused = send("GET", "/v1/random-strings?count=1", null,
+        HttpResponse<String> refused = send("GET", "/v1/nautical-flags?text=A", null,
                 "Authorization", "Bearer " + tasks);
-        assertEquals(List.of("task-service:strings:read"), assertProblem(refused, 403).get("requiredScopes"));
-        assertEquals(401, send("GET", "/v1/random-strings?count=1", null).statusCode());
+        assertEquals(List.of("task-service:flags:read"), assertProblem(refused, 403).get("requiredScopes"));
+        assertEquals(401, send("GET", "/v1/nautical-flags?text=A", null).statusCode());
     }
 
     @Test

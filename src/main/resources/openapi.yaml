@@ -309,31 +309,36 @@ paths:
         "403": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         "406": { $ref: "#/components/responses/Problem" }
-  /v1/random-strings:
+  /v1/nautical-flags:
     get:
       tags: [streams]
-      operationId: streamRandomStrings
+      operationId: streamNauticalFlags
       security:
-        - oauth2: ["task-service:strings:read"]
-      summary: A stream of random alphanumeric strings as server-sent events
+        - oauth2: ["task-service:flags:read"]
+      summary: A text translated into maritime signal flags, streamed as server-sent events
       description: >
-        One event per interval, each with an increasing id, the event name random-string and one
-        string as its data. The stream ends after count events, after the server's configured
-        maximum duration, or when the server shuts down. The interval bounds are configurable;
-        the defaults are shown.
+        One event per character of text, one interval apart, each with an increasing id, the
+        event name nautical-flag and a JSON object as its data. Letters (either case) become the
+        International Code of Signals letter flags, digits the numeral pennants, and a space stays
+        a space. Each object holds the character as sent, the flag's codeword and an approximation
+        of the flag in Unicode coloured squares. The stream ends after the last character, after
+        the server's configured maximum duration, or when the server shuts down. The bounds are
+        configurable; the defaults are shown.
       parameters:
+        - name: text
+          in: query
+          required: true
+          description: The text to translate.
+          schema: { type: string, minLength: 1, maxLength: 256, pattern: "^[A-Za-z0-9 ]+$" }
         - name: intervalMs
           in: query
           description: Milliseconds between events.
           schema: { type: integer, minimum: 50, maximum: 60000, default: 1000 }
-        - name: count
-          in: query
-          description: Number of events after which the stream ends; unbounded if absent.
-          schema: { type: integer, minimum: 1, maximum: 100000 }
       responses:
         "200":
           description: >
-            A text/event-stream, e.g. "id: 0", "event: random-string", "data: q7Rk2VxP0bLmZt9A".
+            A text/event-stream, e.g. "id: 0", "event: nautical-flag",
+            'data: {"char":"a","flag":"Alfa","glyph":"⬜🟦"}'.
           content:
             text/event-stream:
               schema: { type: string }
@@ -391,7 +396,7 @@ components:
             "task-service:tasks:write": Create, replace and delete tasks
             "task-service:cubes:read": Read cubes and their PDF representation
             "task-service:cubes:write": Create, replace and delete cubes
-            "task-service:strings:read": Stream random strings
+            "task-service:flags:read": Stream text as nautical signal flags
   parameters:
     IfMatch:
       name: If-Match

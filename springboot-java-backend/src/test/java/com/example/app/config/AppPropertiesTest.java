@@ -42,9 +42,9 @@ class AppPropertiesTest {
             "app.auth.jwks-timeout-seconds=5", "app.auth.jwks-max-stale-seconds=3600",
             "app.auth.jwks-max-bytes=131072", "app.auth.clock-leeway-seconds=60",
             "app.auth.max-token-bytes=8192",
-            "app.random-stream.default-interval-millis=1000", "app.random-stream.min-interval-millis=50",
-            "app.random-stream.max-interval-millis=60000", "app.random-stream.string-length=16",
-            "app.random-stream.max-duration-seconds=300", "app.random-stream.max-concurrent-streams=100",
+            "app.nautical-flags.default-interval-millis=1000", "app.nautical-flags.min-interval-millis=50",
+            "app.nautical-flags.max-interval-millis=60000", "app.nautical-flags.max-text-length=256",
+            "app.nautical-flags.max-duration-seconds=300", "app.nautical-flags.max-concurrent-streams=100",
         };
     }
 
@@ -63,8 +63,8 @@ class AppPropertiesTest {
             assertThat(properties.auth().scopePrefix()).isEqualTo("task-service:");
             assertThat(properties.auth().realm()).isEqualTo("api");
             assertThat(properties.auth().clockLeewaySeconds()).isEqualTo(Duration.ofSeconds(60));
-            assertThat(properties.randomStream().defaultIntervalMillis()).isEqualTo(1_000);
-            assertThat(properties.randomStream().maxDurationSeconds()).isEqualTo(Duration.ofMinutes(5));
+            assertThat(properties.nauticalFlags().defaultIntervalMillis()).isEqualTo(1_000);
+            assertThat(properties.nauticalFlags().maxDurationSeconds()).isEqualTo(Duration.ofMinutes(5));
         });
     }
 
@@ -90,17 +90,17 @@ class AppPropertiesTest {
                 assertThat(context).hasFailed());
         runner.withPropertyValues("app.auth.jwks-ttl-seconds=1").run(context ->
                 assertThat(context).hasFailed());
-        runner.withPropertyValues("app.random-stream.string-length=0").run(context ->
+        runner.withPropertyValues("app.nautical-flags.max-text-length=0").run(context ->
                 assertThat(context).hasFailed());
-        runner.withPropertyValues("app.random-stream.max-concurrent-streams=0").run(context ->
+        runner.withPropertyValues("app.nautical-flags.max-concurrent-streams=0").run(context ->
                 assertThat(context).hasFailed());
     }
 
     @Test
     void refusesADefaultIntervalOutsideItsOwnBounds() {
-        runner.withPropertyValues("app.random-stream.default-interval-millis=10").run(context ->
+        runner.withPropertyValues("app.nautical-flags.default-interval-millis=10").run(context ->
                 assertThat(context).hasFailed());
-        runner.withPropertyValues("app.random-stream.default-interval-millis=70000").run(context ->
+        runner.withPropertyValues("app.nautical-flags.default-interval-millis=70000").run(context ->
                 assertThat(context).hasFailed());
     }
 

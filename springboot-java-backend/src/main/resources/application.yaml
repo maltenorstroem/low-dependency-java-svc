@@ -31,11 +31,11 @@ app:
     jwks-max-bytes: 131072
     clock-leeway-seconds: 60
     max-token-bytes: 8192
-  random-stream:
+  nautical-flags:
     default-interval-millis: 1000
     min-interval-millis: 50
     max-interval-millis: 60000
-    string-length: 16
+    max-text-length: 256
     max-duration-seconds: 300
     max-concurrent-streams: 100
 
@@ -52,8 +52,8 @@ spring:
   mvc:
     async:
       # No container timeout for async requests. Tomcat's default of 30 s would cut every
-      # /v1/random-strings stream mid-flight; the stream bounds itself with
-      # app.random-stream.max-duration-seconds instead.
+      # /v1/nautical-flags stream mid-flight; the stream bounds itself with
+      # app.nautical-flags.max-duration-seconds instead.
       request-timeout: -1
   lifecycle:
     timeout-per-shutdown-phase: ${app.shutdown-grace-seconds}s

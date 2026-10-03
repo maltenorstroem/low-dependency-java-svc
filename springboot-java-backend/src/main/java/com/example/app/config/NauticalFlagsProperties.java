@@ -10,14 +10,14 @@ import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.convert.DurationUnit;
 
 /**
- * Settings for the {@code /v1/random-strings} stream.
+ * Settings for the {@code /v1/nautical-flags} stream.
  *
  * <p>A caller chooses its own interval, but only within {@code [minIntervalMillis,
  * maxIntervalMillis]}: without a floor one client asking for an event every millisecond costs as
- * much as a thousand polite ones. The duration and stream caps exist because a stream outlives the
- * request that opened it, so neither the request timeout nor load shedding bounds it.
+ * much as a thousand polite ones. The text length, duration and stream caps exist because a stream
+ * outlives the request that opened it, so neither the request timeout nor load shedding bounds it.
  */
-public record RandomStreamProperties(
+public record NauticalFlagsProperties(
 
         @Min(1) @Max(3_600_000) long defaultIntervalMillis,
 
@@ -25,14 +25,14 @@ public record RandomStreamProperties(
 
         @Min(1) @Max(3_600_000) long maxIntervalMillis,
 
-        @Min(1) @Max(1_024) int stringLength,
+        @Min(1) @Max(4_096) int maxTextLength,
 
         @DurationUnit(ChronoUnit.SECONDS)
         @DurationMin(seconds = 1) @DurationMax(seconds = 86_400) Duration maxDurationSeconds,
 
         @Min(1) @Max(100_000) int maxConcurrentStreams) {
 
-    @AssertTrue(message = "APP_RANDOM_STREAM_DEFAULT_INTERVAL_MILLIS must lie between the minimum and maximum interval")
+    @AssertTrue(message = "APP_NAUTICAL_FLAGS_DEFAULT_INTERVAL_MILLIS must lie between the minimum and maximum interval")
     boolean isDefaultIntervalWithinBounds() {
         return minIntervalMillis <= defaultIntervalMillis && defaultIntervalMillis <= maxIntervalMillis;
     }
