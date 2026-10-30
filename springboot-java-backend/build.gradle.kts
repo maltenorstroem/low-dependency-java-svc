@@ -1,6 +1,6 @@
 plugins {
     java
-    id("org.springframework.boot") version "4.1.1"
+    id("org.springframework.boot") version "4.1.2"
     jacoco
 }
 
@@ -21,7 +21,7 @@ repositories {
 
 dependencies {
     // One BOM governs every version in the build; no version numbers below this line.
-    val bom = platform("org.springframework.boot:spring-boot-dependencies:4.1.1")
+    val bom = platform("org.springframework.boot:spring-boot-dependencies:4.1.2")
     implementation(bom)
     annotationProcessor(bom)
     testImplementation(bom)
